@@ -1,0 +1,12 @@
+
+{
+  "name": "Word Count Streaming Beam",
+  "description": "An Apache Beam streaming pipeline that reads JSON encoded messages from Pub/Sub, uses Beam SQL to transform the message data, and writes the results to a BigQuery",
+  "parameters": [
+    {
+      "name": "inputTopic",
+      "label": "Pub/Sub input subscription.",
+      "helpText": "Pub/Sub subscription to read from of the form 'projects/<PROJECT>/topics/<TOPIC>'."
+    }
+  ]
+}

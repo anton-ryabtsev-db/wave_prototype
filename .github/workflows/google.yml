@@ -1,0 +1,57 @@
+name: Build and Deploy to GKE
+
+on: workflow_dispatch
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  REGION: europe-west3
+  TEMPLATE_PATH: gs://pub_sub_example/samples/dataflow/templates/word-count-streaming-beam.json
+  TEMPLATE_IMAGE: gcr.io/${{ secrets.GKE_PROJECT }}/samples/dataflow/word-count-streaming-beam:latest
+  JOB_STAGING_LOCATION: gs://pub_sub_example/tmp_dir
+  INPUT_TOPIC: projects/${{ secrets.GKE_PROJECT }}/topics/job-topic
+  JOB_NAME_PREFIX: dataflow-flextemplate-job
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: google-github-actions/setup-gcloud@v0.2.1
+        with:
+          service_account_email: ${{ secrets.GKE_SA_EMAIL }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
+
+      - name: Build
+        run: |-
+          gcloud builds submit \
+            --quiet \
+            --substitutions=_TEMPLATE_PATH=$TEMPLATE_PATH,_TEMPLATE_IMAGE=$TEMPLATE_IMAGE \
+            word-count-beam/
+
+      - name: Get job ID
+        id: get-job-id
+        run: echo "::set-output name=job-id::$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --region=$REGION | sed -n '2s/^\([^ ]*\).*$/\1/p')"
+
+      - name: Stop active job
+        if: steps.get-job-id.outputs.job-id != ''
+        run: gcloud dataflow jobs drain ${{ steps.get-job-id.outputs.job-id }} --region $REGION
+
+      - name: Wait for job completion
+        if: steps.get-job-id.outputs.job-id != ''
+        run: |-
+          while [ ! -z "$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --region=$REGION | sed -n '2s/^\([^ ]*\).*$/\1/p')" ]; do
+            sleep 10s
+          done
+
+      - name: Start a new job
+        run: |-
+          gcloud dataflow flex-template run "$JOB_NAME_PREFIX-`date +%Y%m%d-%H%M%S`" \
+              --template-file-gcs-location $TEMPLATE_PATH \
+              --parameters inputTopic=$INPUT_TOPIC \
+              --staging-location $JOB_STAGING_LOCATION \
+              --region $REGION

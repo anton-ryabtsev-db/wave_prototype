@@ -50,7 +50,7 @@ jobs:
 
       - name: Get job ID
         id: get-job-id
-        run: echo "::set-output name=job-id::$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --region=$REGION | sed -n '2s/^\([^ ]*\).*$/\1/p')"
+        run: echo "::set-output name=job-id::$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --limit=1 --region=$REGION --format='get(JOB_ID)')"
 
       - name: Stop active job
         if: steps.get-job-id.outputs.job-id != ''
@@ -59,14 +59,40 @@ jobs:
       - name: Wait for job completion
         if: steps.get-job-id.outputs.job-id != ''
         run: |-
-          while [ ! -z "$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --region=$REGION | sed -n '2s/^\([^ ]*\).*$/\1/p')" ]; do
+          while [ ! -z "$(gcloud dataflow jobs list --filter=$JOB_NAME_PREFIX --status=active --limit=1 --region=$REGION --format='get(JOB_ID)')" ]; do
             sleep 10s
           done
 
       - name: Start a new job
+        id: start-job
         run: |-
-          gcloud dataflow flex-template run "$JOB_NAME_PREFIX-`date +%Y%m%d-%H%M%S`" \
+          echo ::set-output name=job-id::$(gcloud dataflow flex-template run "$JOB_NAME_PREFIX-`date +%Y%m%d-%H%M%S`" \
               --template-file-gcs-location $TEMPLATE_PATH \
               --parameters inputTopic=$INPUT_TOPIC \
               --staging-location $JOB_STAGING_LOCATION \
-              --region $REGION
+              --region $REGION \
+              --format="get(job.id)")
+
+      - name: Wait for job start
+        id: wait-job-start
+        if: steps.start-job.outputs.job-id != ''
+        run: |-
+          function get_status() {
+            echo "$(gcloud dataflow jobs show '${{ steps.start-job.outputs.job-id }}' --region=$REGION --format='get(state)')"
+          }
+          status="$(get_status)"
+          while [[ "$status" == "Queued" || "$status" == "Starting" || "$status" == "Pending" ]]; do
+            sleep 10s
+            status="$(get_status)"
+          done
+          echo ::set-output name=job-status::"$(get_status)"
+
+      - name: Check started job status
+        run: |-
+          if [[ "${{ steps.wait-job-start.outputs.job-status }}" != "Running" ]]
+          then
+            echo "Failed to start a job."
+            exit 1
+          else
+            echo "Job with id '${{ steps.start-job.outputs.job-id }}' has been successfully started."
+          fi

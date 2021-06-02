@@ -10,6 +10,7 @@ env:
   JOB_STAGING_LOCATION: gs://pub_sub_example/tmp_dir
   INPUT_TOPIC: projects/${{ secrets.GKE_PROJECT }}/topics/job-topic
   JOB_NAME_PREFIX: dataflow-flextemplate-job
+  MAIN_CLASS: org.apache.beam.examples.StreamingWordCount
 
 jobs:
   setup-build-publish-deploy:
@@ -46,7 +47,7 @@ jobs:
             --flex-template-base-image JAVA8 \
             --metadata-file ./spec/metadata.json \
             --jar ./target/word-count-beam-bundled-0.1.jar \
-            --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.examples.StreamingWordCount"
+            --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="$MAIN_CLASS"
 
       - name: Get job ID
         id: get-job-id

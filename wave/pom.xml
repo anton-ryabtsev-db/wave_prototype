@@ -18,6 +18,7 @@
         <testcontainers.version>1.15.3</testcontainers.version>
         <kafka.version>0.10.2.1</kafka.version>
         <kafka.scala.version>2.11</kafka.scala.version>
+        <mq.version>9.2.2.0</mq.version>
         <confluent.version>3.0.0</confluent.version>
 
         <maven.compiler.source>8</maven.compiler.source>
@@ -38,6 +39,21 @@
             <artifactId>beam-sdks-java-io-kafka</artifactId>
             <version>${beam.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-io-jms</artifactId>
+            <version>${beam.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-io-jdbc</artifactId>
+            <version>${beam.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-io-rabbitmq</artifactId>
+            <version>${beam.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -48,6 +64,11 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <version>${kafka.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.mq</groupId>
+            <artifactId>com.ibm.mq.allclient</artifactId>
+            <version>${mq.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
